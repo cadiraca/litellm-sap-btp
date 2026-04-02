@@ -2,30 +2,16 @@
 # LiteLLM Proxy Configuration for SAP BTP + SAP AI Core
 # =============================================================================
 #
-# SAP AI Core uses DIFFERENT endpoint patterns per provider:
-#   OpenAI:    {base}/v2/inference/deployments/{id}/v1/chat/completions
-#   Anthropic: {base}/v2/inference/deployments/{id}/invoke  (native Anthropic API)
-#   Gemini:    {base}/v2/inference/deployments/{id}/models/{model}:generateContent
-#   Sonar:     {base}/v2/inference/deployments/{id}/chat/completions
-#
-# LiteLLM normalizes all these behind a single OpenAI-compatible API.
-#
-# Tested deployments (dev-uat, US10, resource group: default):
-#   gpt-4.1            → def4a837c37158f9  (OpenAI path)
-#   gpt-5              → dbbd709716d5e3e2  (OpenAI path, reasoning model)
-#   claude-4.5-sonnet  → d955f96663d5e62a  (Anthropic /invoke path)
-#   claude-4.5-haiku   → d826e8baca49c5f9  (Anthropic /invoke path)
-#   gemini-2.5-pro     → d1a4ec86b5abc63f  (Gemini native path)
-#   sonar (perplexity) → d50ba3b92a3cd426  (OpenAI-compat, no /v1)
-#   sap-rpt-1-small    → db8f88681b7cb15f  (TBD)
-#   orchestration      → da9d38433b578ce1  (SAP orchestration)
+# Two routing strategies:
+# 1. OpenAI-compat models (GPT, Sonar): direct /v1/chat/completions endpoints
+# 2. Non-OpenAI models (Claude, Gemini): SAP orchestration via "sap/" provider
+#    (auto-fetches OAuth2 token from AICORE_SERVICE_KEY env var)
 # =============================================================================
 
 model_list:
 
   # --------------------------------------------------------------------------
-  # OpenAI Models — use api_base ending at /deployments/{id}
-  # LiteLLM appends /chat/completions automatically for "openai/" models
+  # Direct OpenAI-compatible (GPT models have /v1/chat/completions on AI Core)
   # --------------------------------------------------------------------------
 
   - model_name: gpt-4.1
@@ -35,8 +21,6 @@ model_list:
       api_key: os.environ/AICORE_OAUTH_TOKEN
       extra_headers:
         AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
-    model_info:
-      description: "GPT-4.1 via SAP AI Core"
 
   - model_name: gpt-5
     litellm_params:
@@ -45,54 +29,6 @@ model_list:
       api_key: os.environ/AICORE_OAUTH_TOKEN
       extra_headers:
         AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
-    model_info:
-      description: "GPT-5 (reasoning model, uses max_completion_tokens) via SAP AI Core"
-
-  # --------------------------------------------------------------------------
-  # Anthropic Claude — use api_base ending at /deployments/{id}
-  # SAP AI Core exposes Claude via /invoke (native Anthropic Messages API)
-  # LiteLLM handles the translation when model prefix is "anthropic/"
-  # --------------------------------------------------------------------------
-
-  - model_name: claude-4.5-sonnet
-    litellm_params:
-      model: anthropic/claude-4.5-sonnet
-      api_base: os.environ/AICORE_CLAUDE_45_SONNET_API_BASE
-      api_key: os.environ/AICORE_OAUTH_TOKEN
-      extra_headers:
-        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
-    model_info:
-      description: "Claude 4.5 Sonnet via SAP AI Core (Anthropic /invoke endpoint)"
-
-  - model_name: claude-4.5-haiku
-    litellm_params:
-      model: anthropic/claude-4.5-haiku
-      api_base: os.environ/AICORE_CLAUDE_45_HAIKU_API_BASE
-      api_key: os.environ/AICORE_OAUTH_TOKEN
-      extra_headers:
-        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
-    model_info:
-      description: "Claude 4.5 Haiku via SAP AI Core (Anthropic /invoke endpoint)"
-
-  # --------------------------------------------------------------------------
-  # Google Gemini — use api_base ending at /deployments/{id}
-  # SAP AI Core exposes Gemini via /models/{model}:generateContent
-  # LiteLLM handles this with "gemini/" prefix
-  # --------------------------------------------------------------------------
-
-  - model_name: gemini-2.5-pro
-    litellm_params:
-      model: gemini/gemini-2.5-pro
-      api_base: os.environ/AICORE_GEMINI_25_PRO_API_BASE
-      api_key: os.environ/AICORE_OAUTH_TOKEN
-      extra_headers:
-        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
-    model_info:
-      description: "Gemini 2.5 Pro via SAP AI Core (Google native endpoint)"
-
-  # --------------------------------------------------------------------------
-  # Perplexity Sonar — OpenAI-compatible but uses /chat/completions (no /v1)
-  # --------------------------------------------------------------------------
 
   - model_name: sonar
     litellm_params:
@@ -101,8 +37,23 @@ model_list:
       api_key: os.environ/AICORE_OAUTH_TOKEN
       extra_headers:
         AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
-    model_info:
-      description: "Perplexity Sonar via SAP AI Core"
+
+  # --------------------------------------------------------------------------
+  # SAP Orchestration (Claude, Gemini via unified /completion endpoint)
+  # Credentials auto-resolved from AICORE_SERVICE_KEY env var
+  # --------------------------------------------------------------------------
+
+  - model_name: claude-4.5-sonnet
+    litellm_params:
+      model: sap/anthropic--claude-4.5-sonnet
+
+  - model_name: claude-4.5-haiku
+    litellm_params:
+      model: sap/anthropic--claude-4.5-haiku
+
+  - model_name: gemini-2.5-pro
+    litellm_params:
+      model: sap/gemini-2.5-pro
 
 # ---------------------------------------------------------------------------
 # LITELLM SETTINGS
