@@ -1,0 +1,83 @@
+{
+  "xsappname": "litellm-sap-btp",
+  "tenant-mode": "dedicated",
+  "description": "LiteLLM AI Gateway Security Descriptor",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.ai-gateway-user",
+      "description": "Standard user access to the AI Gateway"
+    },
+    {
+      "name": "$XSAPPNAME.ai-gateway-admin",
+      "description": "Admin access to the AI Gateway (manage virtual keys, view spend)"
+    },
+    {
+      "name": "$XSAPPNAME.ai-gateway-readonly",
+      "description": "Read-only access to model list and usage stats"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "ResourceGroup",
+      "description": "SAP AI Core Resource Group for tenant isolation",
+      "valueType": "string"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "AIGatewayUser",
+      "description": "Standard user who can invoke LLM models via the gateway",
+      "scope-references": [
+        "$XSAPPNAME.ai-gateway-user"
+      ],
+      "attribute-references": [
+        "ResourceGroup"
+      ]
+    },
+    {
+      "name": "AIGatewayAdmin",
+      "description": "Administrator who can manage the gateway (virtual keys, teams, spend)",
+      "scope-references": [
+        "$XSAPPNAME.ai-gateway-user",
+        "$XSAPPNAME.ai-gateway-admin"
+      ]
+    },
+    {
+      "name": "AIGatewayReadOnly",
+      "description": "Read-only access for monitoring and reporting",
+      "scope-references": [
+        "$XSAPPNAME.ai-gateway-readonly"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "AI Gateway User",
+      "description": "Use the LiteLLM AI Gateway to call LLM models",
+      "role-template-references": [
+        "$XSAPPNAME.AIGatewayUser"
+      ]
+    },
+    {
+      "name": "AI Gateway Admin",
+      "description": "Manage the LiteLLM AI Gateway",
+      "role-template-references": [
+        "$XSAPPNAME.AIGatewayAdmin"
+      ]
+    }
+  ],
+  "oauth2-configuration": {
+    "token-validity": 43200,
+    "refresh-token-validity": 43200,
+    "autoapprove": false,
+    "redirect-uris": [
+      "https://*.cfapps.us10-001.hana.ondemand.com/**",
+      "https://*.cfapps.eu10-004.hana.ondemand.com/**",
+      "http://localhost:8080/**"
+    ],
+    "system-attributes": [
+      "groups",
+      "rolecollections"
+    ]
+  }
+}

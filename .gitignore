@@ -1,0 +1,67 @@
+# Environment files
+.env
+*.env.local
+*.env.*.local
+
+# SAP AI Core credentials (NEVER commit these)
+default_aicore.json
+aicore_service_key.json
+service-key*.json
+*-service-key.json
+
+# Build artifacts
+*.mtar
+dist/
+build/
+mta_archives/
+
+# Node / npm
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+
+# Secrets
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+credentials/

@@ -1,0 +1,184 @@
+# =============================================================================
+# LiteLLM Proxy Configuration for SAP BTP + SAP AI Core
+# =============================================================================
+#
+# This file configures LiteLLM to proxy requests to SAP AI Core's
+# OpenAI-compatible inference API.
+#
+# SAP AI Core inference endpoint pattern:
+#   POST {AI_API_URL}/v2/inference/deployments/{deployment_id}/chat/completions
+#   Authorization: Bearer {oauth2_token}
+#   AI-Resource-Group: {resource_group}
+#
+# All values prefixed with "os.environ/" are read from environment variables.
+# In SAP BTP CF, these come from:
+#   - User-provided environment variables (cf set-env)
+#   - VCAP_SERVICES bindings (parsed by app startup script)
+#   - MTA parameters
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# MODEL LIST
+# Each entry maps a user-facing model alias to a SAP AI Core deployment.
+# The api_base points to the AI Core inference endpoint for that deployment.
+# ---------------------------------------------------------------------------
+model_list:
+
+  # --------------------------------------------------------------------------
+  # OpenAI Models via SAP AI Core (generative AI hub)
+  # --------------------------------------------------------------------------
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_base: os.environ/AICORE_GPT4O_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "GPT-4o via SAP AI Core Generative AI Hub"
+      provider: "SAP AI Core"
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_base: os.environ/AICORE_GPT4O_MINI_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "GPT-4o Mini via SAP AI Core Generative AI Hub"
+      provider: "SAP AI Core"
+
+  # --------------------------------------------------------------------------
+  # Anthropic Claude Models via SAP AI Core
+  # --------------------------------------------------------------------------
+
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: openai/claude-3-5-sonnet-20241022
+      api_base: os.environ/AICORE_CLAUDE_35_SONNET_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "Claude 3.5 Sonnet via SAP AI Core"
+      provider: "SAP AI Core"
+
+  - model_name: claude-3-haiku
+    litellm_params:
+      model: openai/claude-3-haiku-20240307
+      api_base: os.environ/AICORE_CLAUDE_3_HAIKU_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "Claude 3 Haiku via SAP AI Core"
+      provider: "SAP AI Core"
+
+  # --------------------------------------------------------------------------
+  # Google Gemini Models via SAP AI Core
+  # --------------------------------------------------------------------------
+
+  - model_name: gemini-1-5-pro
+    litellm_params:
+      model: openai/gemini-1.5-pro
+      api_base: os.environ/AICORE_GEMINI_15_PRO_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "Gemini 1.5 Pro via SAP AI Core"
+      provider: "SAP AI Core"
+
+  # --------------------------------------------------------------------------
+  # Mistral Models via SAP AI Core
+  # --------------------------------------------------------------------------
+
+  - model_name: mistral-large
+    litellm_params:
+      model: openai/mistral-large-latest
+      api_base: os.environ/AICORE_MISTRAL_LARGE_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "Mistral Large via SAP AI Core"
+      provider: "SAP AI Core"
+
+  # --------------------------------------------------------------------------
+  # Meta Llama Models via SAP AI Core
+  # --------------------------------------------------------------------------
+
+  - model_name: llama-3-1-70b
+    litellm_params:
+      model: openai/meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_base: os.environ/AICORE_LLAMA_31_70B_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "Llama 3.1 70B Instruct via SAP AI Core"
+      provider: "SAP AI Core"
+
+  # --------------------------------------------------------------------------
+  # Embedding Models via SAP AI Core
+  # --------------------------------------------------------------------------
+
+  - model_name: text-embedding-ada-002
+    litellm_params:
+      model: openai/text-embedding-ada-002
+      api_base: os.environ/AICORE_TEXT_EMBEDDING_API_BASE
+      api_key: os.environ/AICORE_OAUTH_TOKEN
+      extra_headers:
+        AI-Resource-Group: os.environ/AICORE_RESOURCE_GROUP
+    model_info:
+      description: "Text Embedding Ada 002 via SAP AI Core"
+      provider: "SAP AI Core"
+      mode: embedding
+
+# ---------------------------------------------------------------------------
+# LITELLM SETTINGS
+# Module-level settings for retry logic, fallbacks, etc.
+# ---------------------------------------------------------------------------
+litellm_settings:
+  # Drop unsupported params instead of erroring (important for SAP AI Core compat)
+  drop_params: True
+  # Retry failed requests
+  num_retries: 3
+  request_timeout: 600  # 10 minutes for long completions
+  # Fallback chains (e.g., if gpt-4o fails, try claude-3-5-sonnet)
+  fallbacks:
+    - {"gpt-4o": ["claude-3-5-sonnet"]}
+  # Optional: enable success callbacks for observability
+  # success_callback: ["langfuse"]
+  # failure_callback: ["langfuse"]
+
+# ---------------------------------------------------------------------------
+# GENERAL SETTINGS
+# ---------------------------------------------------------------------------
+general_settings:
+  # Master key for the LiteLLM admin API
+  # In production, set via LITELLM_MASTER_KEY env var
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # Enable virtual key management (requires DATABASE_URL)
+  # store_model_in_db: True
+
+  # Rate limiting
+  # max_parallel_requests: 100
+
+  # Disable Swagger in production (optional)
+  # no_docs: True
+
+# ---------------------------------------------------------------------------
+# ROUTER SETTINGS
+# ---------------------------------------------------------------------------
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  timeout: 600
+  # Uncomment for multi-instance deployments with Redis:
+  # redis_host: os.environ/REDIS_HOST
+  # redis_password: os.environ/REDIS_PASSWORD
+  # redis_port: 6379

@@ -1,0 +1,120 @@
+# =============================================================================
+# Cloud Foundry Application Manifest
+# Deploy with: cf push
+# =============================================================================
+#
+# This manifest deploys LiteLLM as a Docker-based CF application.
+# All secrets are injected via `cf set-env` or user-provided services.
+#
+# Prerequisites:
+#   - CF CLI installed and logged in: cf login -a <api-endpoint>
+#   - Docker image pushed to a registry accessible from CF
+#   - SAP AI Core service instance + service key created
+#   - Run scripts/setup-ai-core.sh to prepare the environment
+#
+# Deploy:
+#   cf push
+#
+# After first deploy, inject secrets:
+#   cf set-env litellm-sap-btp LITELLM_MASTER_KEY sk-your-key
+#   cf set-env litellm-sap-btp AICORE_CLIENT_SECRET your-secret
+#   cf restage litellm-sap-btp
+# =============================================================================
+
+applications:
+  - name: litellm-sap-btp
+    # Use Docker image instead of buildpack
+    docker:
+      image: ghcr.io/your-org/litellm-sap-btp:latest
+      # If your registry is private, set credentials:
+      # username: ((DOCKER_USERNAME))
+      # password: ((DOCKER_PASSWORD))
+
+    # CF ignores buildpack when docker image is specified
+    # but we declare it explicitly to be safe
+    no-route: false
+    random-route: false
+
+    # Memory & disk — LiteLLM recommends >= 512MB; 1GB is comfortable
+    memory: 1G
+    disk_quota: 512M
+
+    # Number of instances (scale up for HA)
+    instances: 1
+
+    # Health check — HTTP check on /health/liveliness
+    health-check-type: http
+    health-check-http-endpoint: /health/liveliness
+    health-check-invocation-timeout: 30
+
+    # Startup timeout (seconds) — Docker pulls can be slow on first deploy
+    timeout: 180
+
+    # Environment variables
+    # Secrets (marked with CHANGEME) must be set via `cf set-env` — never hardcode here
+    env:
+      # ----------------------------------------------------------------
+      # LiteLLM Proxy Core Settings
+      # ----------------------------------------------------------------
+      PORT: "8080"
+      LITELLM_LOG: "INFO"
+
+      # Set via cf set-env (CHANGEME):
+      # LITELLM_MASTER_KEY: sk-...
+      # LITELLM_SALT_KEY: ...
+
+      # ----------------------------------------------------------------
+      # SAP AI Core OAuth2 Credentials
+      # Set ALL of these via `cf set-env` after first push (CHANGEME)
+      # ----------------------------------------------------------------
+      # AICORE_BASE_URL: https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com
+      # AICORE_AUTH_URL: https://your-subaccount.authentication.us10.hana.ondemand.com/oauth/token
+      # AICORE_CLIENT_ID: sb-...
+      # AICORE_CLIENT_SECRET: ...
+      AICORE_RESOURCE_GROUP: "default"
+
+      # ----------------------------------------------------------------
+      # SAP AI Core Deployment API Base URLs
+      # Pattern: {AICORE_BASE_URL}/v2/inference/deployments/{deployment_id}/v1
+      # Set via `cf set-env` after creating deployments in AI Launchpad
+      # ----------------------------------------------------------------
+      # AICORE_GPT4O_API_BASE: https://api.ai.prod.../v2/inference/deployments/d.../v1
+      # AICORE_GPT4O_MINI_API_BASE: ...
+      # AICORE_CLAUDE_35_SONNET_API_BASE: ...
+      # AICORE_CLAUDE_3_HAIKU_API_BASE: ...
+      # AICORE_GEMINI_15_PRO_API_BASE: ...
+      # AICORE_MISTRAL_LARGE_API_BASE: ...
+      # AICORE_LLAMA_31_70B_API_BASE: ...
+      # AICORE_TEXT_EMBEDDING_API_BASE: ...
+
+      # ----------------------------------------------------------------
+      # OAuth2 Token (managed by token-refresh sidecar or startup script)
+      # In production, use the aicore_token_helper.py approach described
+      # in docs/SETUP.md to keep this fresh. For testing, set manually.
+      # ----------------------------------------------------------------
+      # AICORE_OAUTH_TOKEN: Bearer eyJ...
+
+      # ----------------------------------------------------------------
+      # Optional: Database for virtual keys + spend tracking
+      # Provision a PostgreSQL service and bind it, or set manually:
+      # ----------------------------------------------------------------
+      # DATABASE_URL: postgresql://user:pass@host:5432/litellm
+
+      # ----------------------------------------------------------------
+      # Optional: Observability
+      # ----------------------------------------------------------------
+      # LANGFUSE_PUBLIC_KEY: pk-lf-...
+      # LANGFUSE_SECRET_KEY: sk-lf-...
+      # SLACK_WEBHOOK_URL: https://hooks.slack.com/...
+
+      # Disable pulling live model prices (improves cold start in CF)
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"
+
+    # ----------------------------------------------------------------
+    # Service Bindings (optional)
+    # Bind a PostgreSQL service for virtual keys + spend tracking.
+    # Create with: cf create-service postgresql-db trial litellm-db
+    # ----------------------------------------------------------------
+    # services:
+    #   - litellm-db        # PostgreSQL for virtual keys & spend tracking
+    #   - litellm-redis     # Redis for multi-instance rate limiting
